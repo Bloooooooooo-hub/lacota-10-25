@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  la-cota-transport:
+    build: .
+    container_name: la-cota-transport
+    ports:
+      - "3101:3101"  # 🌐 Application accessible via localhost:3101
+    environment:
+      - NODE_ENV=production
+      - PORT=3101
+      - BASE_URL=https://lacota.preprod.maroadmap.com   # 🌍 URL publique du site
+
+    env_file:
+      - .env                # 🔐 charge les secrets locaux (.env à la racine)
+    volumes:
+      - /app/node_modules   # évite la réécriture des dépendances dans le conteneur
+    restart: unless-stopped
+    networks:
+      - lacota-net          # 🔁 même réseau que ton backend Hasura / BDD
+
+networks:
+  lacota-net:
+    external: true
