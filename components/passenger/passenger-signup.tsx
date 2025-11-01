@@ -1,20 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { ArrowLeft } from "lucide-react"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input"
+
+import { sendOtpToPhone, confirmOtp } from "@/lib/firebaseClient"
 
 interface PassengerSignupProps {
   onComplete: (data: any) => void
   onBack: () => void
 }
 
+type SignupStep = "phone" | "otp" | "personal" | "done"
+
 export default function PassengerSignup({ onComplete, onBack }: PassengerSignupProps) {
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState<SignupStep>("phone")
+  const [countryCode, setCountryCode] = useState("+225")
   const [phone, setPhone] = useState("")
-  const [otp, setOtp] = useState(["", "", "", ""])
+  const [otp, setOtp] = useState("")
+  const [status, setStatus] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [confirmationResult, setConfirmationResult] = useState<any>(null)
+
   const [formData, setFormData] = useState({
     gender: "",
     firstName: "",
@@ -24,202 +34,228 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
     email: "",
   })
 
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length <= 1) {
-      const newOtp = [...otp]
-      newOtp[index] = value
-      setOtp(newOtp)
-      if (value && index < 3) {
-        document.getElementById(`otp-${index + 1}`)?.focus()
-      }
+  // 🔹 Étape 1 — Envoi du code
+  async function handleSendCode() {
+    if (!phone.trim()) return setStatus("Merci d'entrer un numéro.")
+
+    try {
+      setLoading(true)
+      setStatus("Envoi du SMS...")
+      const fullNumber = countryCode + phone.replace(/\s+/g, "")
+      const result = await sendOtpToPhone(fullNumber)
+      setConfirmationResult(result)
+      setStep("otp")
+      setStatus("Code envoyé ✅")
+    } catch (err: any) {
+      console.error(err)
+      setStatus("Erreur envoi SMS : " + err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleSubmit = () => {
-    onComplete({ ...formData, phone })
+  // 🔹 Étape 2 — Vérification OTP
+  async function handleVerifyCode() {
+    if (!confirmationResult) return setStatus("Pas de session OTP active.")
+    if (otp.trim().length < 6) return setStatus("Le code doit faire 6 chiffres.")
+
+    try {
+      setLoading(true)
+      setStatus("Vérification du code...")
+      const user = await confirmOtp(confirmationResult, otp)
+      setStatus("Téléphone confirmé ✅ " + user.phoneNumber)
+      setStep("personal")
+    } catch (err: any) {
+      console.error(err)
+      setStatus("Code invalide ❌ : " + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (step === 1) {
-    return (
-      <div className="min-h-screen bg-[#fffaf3] p-6">
-        <div className="max-w-md mx-auto">
-          <Button variant="ghost" onClick={onBack} className="mb-6">
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Retour
-          </Button>
+  // 🔹 Étape 3 — Envoi des infos
+  async function handleSubmit() {
+    try {
+      setLoading(true)
+      setStatus("Enregistrement en cours...")
 
-          <div className="bg-white rounded-2xl p-6 shadow-lg space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Entrez votre numéro de téléphone :</h2>
+      const fullNumber = countryCode + phone.replace(/\s+/g, "")
+      const role = "passenger"
 
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                  <span className="text-2xl">🇨🇮</span>
-                  <span className="font-semibold">+225</span>
-                </div>
-                <Input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="XX XX XX XXX"
-                  className="flex-1 h-12 text-lg"
-                />
-              </div>
-              <p className="text-sm text-gray-500">Un SMS de confirmation vous sera envoyé</p>
-            </div>
+      const resp = await fetch("/api/upsert-user", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ phone: fullNumber, role, ...formData }),
+      })
 
-            <Button
-              onClick={() => setStep(2)}
-              disabled={phone.length < 8}
-              className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
-            >
-              Suivant
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}))
+        console.error("Erreur /api/upsert-user:", errData)
+        setStatus("Erreur d’enregistrement ❌")
+        return
+      }
 
-  if (step === 2) {
-    return (
-      <div className="min-h-screen bg-[#fffaf3] p-6">
-        <div className="max-w-md mx-auto">
-          <Button variant="ghost" onClick={() => setStep(1)} className="mb-6">
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Retour
-          </Button>
-
-          <div className="bg-white rounded-2xl p-6 shadow-lg space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Entrez le code de confirmation envoyé au +225 {phone} :
-            </h2>
-
-            <div className="flex gap-3 justify-center">
-              {otp.map((digit, index) => (
-                <Input
-                  key={index}
-                  id={`otp-${index}`}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(index, e.target.value)}
-                  className="w-16 h-16 text-center text-2xl font-bold"
-                />
-              ))}
-            </div>
-
-            <Button
-              onClick={() => setStep(3)}
-              disabled={otp.some((d) => !d)}
-              className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
-            >
-              Suivant
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
+      const data = await resp.json()
+      setStatus("Compte créé ✅")
+      setStep("done")
+      onComplete(data)
+      window.location.href = "/passenger/home"
+    } catch (err: any) {
+      console.error(err)
+      setStatus("Erreur : " + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf3] p-6">
-      <div className="max-w-md mx-auto">
-        <Button variant="ghost" onClick={() => setStep(2)} className="mb-6">
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Retour
-        </Button>
+    <div className="min-h-screen bg-[#fffaf3] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b bg-white">
+        <button onClick={onBack} className="p-2">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <h2 className="text-lg font-bold">INSCRIPTION PASSAGER</h2>
+        <div className="w-10" />
+      </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-lg space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">Informations personnelles</h2>
+      {/* Contenu */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-md mx-auto space-y-6">
+          {/* Étape 1 — téléphone */}
+          {step === "phone" && (
+            <div className="space-y-6 animate-slide-up">
+              <Label>Entrez votre numéro de téléphone :</Label>
+              <div className="flex gap-2">
+                <select
+                  className="px-3 py-2 bg-gray-100 rounded-lg font-semibold"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                >
+                  <option value="+225">🇨🇮 +225</option>
+                  <option value="+33">🇫🇷 +33</option>
+                  <option value="+237">🇨🇲 +237</option>
+                  <option value="+221">🇸🇳 +221</option>
+                </select>
 
-          <div className="space-y-4">
-            <div>
-              <Label>Comment préférez-vous qu'on vous appelle ?</Label>
-              <div className="flex gap-2 mt-2">
+                <Input
+                  type="tel"
+                  placeholder="01 41 36 28 39"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="flex-1 h-12 text-lg"
+                />
+              </div>
+              <Button
+                onClick={handleSendCode}
+                disabled={loading || phone.trim().length === 0}
+                className="w-full h-14 text-lg font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
+              >
+                {loading ? "Envoi..." : "Recevoir mon code"}
+              </Button>
+            </div>
+          )}
+
+          {/* Étape 2 — OTP */}
+          {step === "otp" && (
+            <div className="space-y-6 animate-slide-up">
+              <Label>Entrez le code envoyé au {countryCode} {phone} :</Label>
+              <div className="flex justify-center">
+                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                  <InputOTPGroup>
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <InputOTPSlot key={i} index={i} className="w-12 h-12 text-2xl" />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              <Button
+                onClick={handleVerifyCode}
+                disabled={loading || otp.trim().length < 6}
+                className="w-full h-14 text-lg font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
+              >
+                {loading ? "Vérification..." : "Confirmer le code"}
+              </Button>
+            </div>
+          )}
+
+          {/* Étape 3 — Données personnelles */}
+          {step === "personal" && (
+            <div className="space-y-4 animate-slide-up">
+              <Label>Informations personnelles</Label>
+
+              <div className="flex gap-2">
                 <Button
-                  variant={formData.gender === "Madame" ? "default" : "outline"}
-                  onClick={() => setFormData({ ...formData, gender: "Madame" })}
+                  variant={formData.gender === "Mme" ? "default" : "outline"}
+                  onClick={() => setFormData({ ...formData, gender: "Mme" })}
                   className="flex-1"
                 >
                   Madame / Mademoiselle
                 </Button>
                 <Button
-                  variant={formData.gender === "Monsieur" ? "default" : "outline"}
-                  onClick={() => setFormData({ ...formData, gender: "Monsieur" })}
+                  variant={formData.gender === "Mr" ? "default" : "outline"}
+                  onClick={() => setFormData({ ...formData, gender: "Mr" })}
                   className="flex-1"
                 >
                   Monsieur
                 </Button>
               </div>
-            </div>
 
-            <div>
-              <Label>Prénom</Label>
               <Input
+                placeholder="Prénom"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                placeholder="Prénoms"
-                className="mt-2"
               />
-            </div>
-
-            <div>
-              <Label>Nom</Label>
               <Input
+                placeholder="Nom"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                placeholder="Nom"
-                className="mt-2"
               />
-            </div>
-
-            <div>
-              <Label>Date de naissance</Label>
               <Input
                 type="date"
                 value={formData.birthDate}
                 onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                placeholder="JJ/MM/AAAA"
-                className="mt-2"
               />
-            </div>
-
-            <div>
-              <Label>Profession</Label>
               <Input
+                placeholder="Profession"
                 value={formData.profession}
                 onChange={(e) => setFormData({ ...formData, profession: e.target.value })}
-                placeholder="Profession"
-                className="mt-2"
               />
-            </div>
-
-            <div>
-              <Label>Adresse e-mail (facultatif)</Label>
               <Input
                 type="email"
+                placeholder="Email (facultatif)"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Votre adresse e-mail"
-                className="mt-2"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                En saisissant votre adresse email, vous acceptez de recevoir des emails promotionnels de LA COTA.
+
+              <Button
+                onClick={handleSubmit}
+                disabled={!formData.firstName || !formData.lastName || !formData.gender}
+                className="w-full h-14 text-lg font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
+              >
+                {loading ? "Enregistrement..." : "Terminer l'inscription"}
+              </Button>
+            </div>
+          )}
+
+          {/* Étape finale */}
+          {step === "done" && (
+            <div className="space-y-4 text-center animate-slide-up">
+              <p className="text-lg font-semibold text-green-600">
+                Inscription terminée ✅
+              </p>
+              <p className="text-sm text-gray-600">
+                Bienvenue sur LA COTA 🚖
               </p>
             </div>
-          </div>
+          )}
 
-          <Button
-            onClick={handleSubmit}
-            disabled={!formData.gender || !formData.firstName || !formData.lastName || !formData.birthDate}
-            className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
-          >
-            Enregistrer
-          </Button>
+          <p className="text-center text-xs text-gray-500 min-h-[1.5rem]">{status}</p>
+          <div id="recaptcha-container" />
         </div>
       </div>
     </div>
+  )
+}
   )
 }
