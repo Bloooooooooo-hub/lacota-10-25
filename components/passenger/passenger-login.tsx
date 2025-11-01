@@ -6,8 +6,12 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { ArrowLeft } from "lucide-react"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input"
-
-import { sendOtpToPhone, confirmOtp } from "@/lib/firebaseClient"
+import {
+  sendOtpToPhone,
+  confirmOtp,
+  auth,
+} from "@/lib/firebaseClient"
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 
 interface PassengerLoginProps {
   onComplete: (data: any) => void
@@ -23,7 +27,7 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
   const [loading, setLoading] = useState(false)
   const [confirmationResult, setConfirmationResult] = useState<any>(null)
 
-  // 🔹 Étape 1 : Envoi du code
+  // 🔹 Étape 1 : Envoi OTP
   async function handleSendCode() {
     if (!phone.trim()) return setStatus("Merci d'entrer un numéro.")
 
@@ -43,7 +47,7 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
     }
   }
 
-  // 🔹 Étape 2 : Vérification du code
+  // 🔹 Étape 2 : Vérification OTP
   async function handleVerifyCode() {
     if (!confirmationResult) return setStatus("Pas de session OTP active.")
     if (otp.trim().length < 6) return setStatus("Le code doit faire 6 chiffres.")
@@ -53,29 +57,13 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
       setStatus("Vérification du code...")
       const user = await confirmOtp(confirmationResult, otp)
       const validatedPhone = user.phoneNumber
-      setStatus("Connecté ✅ " + validatedPhone)
 
       // 🔁 Synchronisation Hasura
-      const role = "passenger"
-      const resp = await fetch("/api/upsert-user", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: validatedPhone, role }),
-      })
+      await syncUserWithHasura({ phone: validatedPhone, role: "passenger" })
 
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}))
-        console.error("Erreur /api/upsert-user:", errData)
-        setStatus("Erreur lors de l’enregistrement du profil ❌")
-        return
-      }
-
-      const data = await resp.json()
       setStep("done")
       setStatus("Connexion réussie ✅")
-      onComplete({ phone: validatedPhone, userRecord: data.userRecord })
-
-      // 🚖 Redirection vers tableau de bord passager
+      onComplete({ phone: validatedPhone })
       window.location.href = "/passenger/home"
     } catch (err: any) {
       console.error(err)
@@ -85,6 +73,54 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
     }
   }
 
+  // 🟢 Connexion Google
+  async function handleGoogleLogin() {
+    try {
+      setLoading(true)
+      setStatus("Connexion Google...")
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+
+      // 🧩 Séparation prénom / nom
+      const [firstName, ...rest] = (user.displayName || "").split(" ")
+      const lastName = rest.join(" ")
+
+      // 🔁 Synchronisation Hasura
+      await syncUserWithHasura({
+        email: user.email,
+        first_name: firstName,
+        last_name: lastName,
+        role: "passenger",
+        provider: "google",
+      })
+
+      setStatus("Connexion réussie ✅")
+      onComplete({ email: user.email, name: user.displayName })
+      window.location.href = "/passenger/home"
+    } catch (err: any) {
+      console.error("Erreur Google Auth:", err)
+      setStatus("Erreur Google : " + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 🔁 Fonction commune d’enregistrement Hasura
+  async function syncUserWithHasura(payload: any) {
+    const resp = await fetch("/api/upsert-user", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    if (!resp.ok) {
+      const errorText = await resp.text()
+      console.error("Erreur API:", errorText)
+      throw new Error("Erreur Hasura /api/upsert-user")
+    }
+  }
+
+  // 🔹 UI
   return (
     <div className="min-h-screen bg-[#fffaf3] flex flex-col">
       {/* Header */}
@@ -135,6 +171,23 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
               >
                 {loading ? "Envoi..." : "Recevoir mon code"}
               </Button>
+
+              {/* --- OU --- */}
+              <div className="flex items-center justify-center my-4">
+                <div className="border-t border-gray-300 w-1/3" />
+                <span className="px-3 text-gray-500 text-sm">ou</span>
+                <div className="border-t border-gray-300 w-1/3" />
+              </div>
+
+              {/* Connexion Google */}
+              <Button
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full h-14 bg-white text-gray-800 border border-gray-300 hover:bg-gray-100 flex items-center justify-center gap-2"
+              >
+                <img src="/google-logo.svg" alt="Google" className="w-5 h-5" />
+                <span>Continuer avec Google</span>
+              </Button>
             </div>
           )}
 
@@ -164,7 +217,7 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
             </div>
           )}
 
-          {/* Étape 3 - Terminé */}
+          {/* Étape 3 - Done */}
           {step === "done" && (
             <div className="space-y-4 animate-slide-up text-center">
               <p className="text-lg font-semibold text-green-600">Connecté ✅</p>
@@ -172,6 +225,7 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
             </div>
           )}
 
+          {/* Statut */}
           <p className="text-center text-xs text-gray-500 min-h-[1.5rem]">{status}</p>
           <div id="recaptcha-container" />
         </div>

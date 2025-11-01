@@ -6,6 +6,7 @@ import PublishRide from "./publish-ride"
 import SelectRide from "./select-ride"
 import WalletScreen from "./wallet-screen"
 import ActiveRide from "./active-ride"
+import InfosDriver from "./InfosDriver"
 
 interface DriverDashboardProps {
   driverData: any
@@ -24,7 +25,7 @@ export default function DriverDashboard({ driverData, onLogout }: DriverDashboar
 
   return (
     <div className="min-h-screen bg-[#fffaf3] flex flex-col">
-      {/* Content */}
+      {/* ----------- Content ----------- */}
       <div className="flex-1 overflow-y-auto pb-20">
         {activeTab === "wallet" && <WalletScreen />}
         {activeTab === "publish" && <PublishRide />}
@@ -34,14 +35,10 @@ export default function DriverDashboard({ driverData, onLogout }: DriverDashboar
             <h2 className="text-2xl font-bold">Le Grin</h2>
           </div>
         )}
-        {activeTab === "info" && (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold">Infos</h2>
-          </div>
-        )}
+        {activeTab === "info" && <InfosDriver />}
       </div>
 
-      {/* Bottom Navigation */}
+      {/* ----------- Bottom Navigation ----------- */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-3 safe-area-bottom">
         <div className="flex justify-around items-center max-w-md mx-auto">
           <NavButton
@@ -63,8 +60,18 @@ export default function DriverDashboard({ driverData, onLogout }: DriverDashboar
             active={activeTab === "rides"}
             onClick={() => setActiveTab("rides")}
           />
-          <NavButton icon={Mail} label="Le grin" active={activeTab === "grin"} onClick={() => setActiveTab("grin")} />
-          <NavButton icon={Info} label="Infos" active={activeTab === "info"} onClick={() => setActiveTab("info")} />
+          <NavButton
+            icon={Mail}
+            label="Le grin"
+            active={activeTab === "grin"}
+            onClick={() => setActiveTab("grin")}
+          />
+          <NavButton
+            icon={Info}
+            label="Infos"
+            active={activeTab === "info"}
+            onClick={() => setActiveTab("info")}
+          />
         </div>
       </div>
     </div>

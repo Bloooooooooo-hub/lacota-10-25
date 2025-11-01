@@ -7,7 +7,8 @@ import { Label } from "../ui/label"
 import { ArrowLeft } from "lucide-react"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input"
 
-import { sendOtpToPhone, confirmOtp } from "@/lib/firebaseClient"
+import { sendOtpToPhone, confirmOtp, auth } from "@/lib/firebaseClient"
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 
 interface PassengerSignupProps {
   onComplete: (data: any) => void
@@ -108,6 +109,42 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
     }
   }
 
+  // 🟢 Connexion / inscription Google
+  async function handleGoogleSignup() {
+    try {
+      setLoading(true)
+      setStatus("Connexion Google...")
+
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+
+      // 🔁 Création dans Hasura
+      const resp = await fetch("/api/upsert-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: user.displayName,
+          email: user.email,
+          role: "passenger",
+          provider: "google",
+        }),
+      })
+
+      if (!resp.ok) throw new Error("Erreur lors de la création du compte")
+
+      setStatus("Compte créé avec Google ✅")
+      setStep("done")
+      onComplete({ email: user.email, name: user.displayName })
+      window.location.href = "/passenger/home"
+    } catch (err: any) {
+      console.error("Erreur Google:", err)
+      setStatus("Erreur Google : " + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#fffaf3] flex flex-col">
       {/* Header */}
@@ -146,12 +183,30 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
                   className="flex-1 h-12 text-lg"
                 />
               </div>
+
               <Button
                 onClick={handleSendCode}
                 disabled={loading || phone.trim().length === 0}
                 className="w-full h-14 text-lg font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl"
               >
                 {loading ? "Envoi..." : "Recevoir mon code"}
+              </Button>
+
+              {/* --- OU --- */}
+              <div className="flex items-center justify-center my-4">
+                <div className="border-t border-gray-300 w-1/3" />
+                <span className="px-3 text-gray-500 text-sm">ou</span>
+                <div className="border-t border-gray-300 w-1/3" />
+              </div>
+
+              {/* Bouton Google */}
+              <Button
+                onClick={handleGoogleSignup}
+                disabled={loading}
+                className="w-full h-14 bg-white text-gray-800 border border-gray-300 hover:bg-gray-100 flex items-center justify-center gap-2"
+              >
+                <img src="/google-logo.svg" alt="Google" className="w-5 h-5" />
+                <span>Continuer avec Google</span>
               </Button>
             </div>
           )}
@@ -241,12 +296,8 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
           {/* Étape finale */}
           {step === "done" && (
             <div className="space-y-4 text-center animate-slide-up">
-              <p className="text-lg font-semibold text-green-600">
-                Inscription terminée ✅
-              </p>
-              <p className="text-sm text-gray-600">
-                Bienvenue sur LA COTA 🚖
-              </p>
+              <p className="text-lg font-semibold text-green-600">Inscription terminée ✅</p>
+              <p className="text-sm text-gray-600">Bienvenue sur LA COTA 🚖</p>
             </div>
           )}
 
@@ -255,7 +306,5 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
         </div>
       </div>
     </div>
-  )
-}
   )
 }
