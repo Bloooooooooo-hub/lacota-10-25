@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import type { UserProfile } from "@/app/page"
 import { ArrowLeft, Calendar, Clock, MapPin, Navigation, Bus, Car } from "lucide-react"
-type UserProfile = "user" | "healthcare";
+
+// ✅ Supprimé l’import invalide depuis "@/app/page"
+type UserProfile = "user" | "healthcare"
 
 interface TripPlanningProps {
   userProfile: UserProfile
@@ -22,8 +23,7 @@ export default function TripPlanning({ userProfile, onBack }: TripPlanningProps)
   const [transportMode, setTransportMode] = useState<"bus" | "taxi" | null>(null)
 
   const handleSearch = () => {
-    // Logic for searching available transport options
-    console.log("Searching for transport options...", {
+    console.log("Recherche de transport…", {
       userProfile,
       selectedDate,
       selectedTime,
@@ -59,12 +59,16 @@ export default function TripPlanning({ userProfile, onBack }: TripPlanningProps)
           <div className="text-center">
             <h1 className="text-2xl font-black text-primary">LA COTA</h1>
           </div>
-          <div className="w-9" /> {/* Spacer */}
+          <div className="w-9" />
         </div>
 
-        {/* Profile Badge */}
+        {/* Profil */}
         <Card
-          className={`border-2 ${currentProfile.color === "primary" ? "border-primary/20 bg-primary/5" : "border-secondary/20 bg-secondary/5"}`}
+          className={`border-2 ${
+            currentProfile.color === "primary"
+              ? "border-primary/20 bg-primary/5"
+              : "border-secondary/20 bg-secondary/5"
+          }`}
         >
           <CardContent className="p-4">
             <div className="flex items-center space-x-3">
@@ -77,7 +81,7 @@ export default function TripPlanning({ userProfile, onBack }: TripPlanningProps)
           </CardContent>
         </Card>
 
-        {/* Trip Planning Form */}
+        {/* Formulaire */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -86,7 +90,6 @@ export default function TripPlanning({ userProfile, onBack }: TripPlanningProps)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Location inputs */}
             <div className="space-y-3">
               <div>
                 <Label htmlFor="departure" className="flex items-center space-x-2 mb-2">
@@ -115,14 +118,18 @@ export default function TripPlanning({ userProfile, onBack }: TripPlanningProps)
               </div>
             </div>
 
-            {/* Date and Time */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="date" className="flex items-center space-x-2 mb-2">
                   <Calendar className="w-4 h-4 text-primary" />
                   <span>Date</span>
                 </Label>
-                <Input id="date" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+                <Input
+                  id="date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                />
               </div>
 
               <div>
@@ -130,17 +137,23 @@ export default function TripPlanning({ userProfile, onBack }: TripPlanningProps)
                   <Clock className="w-4 h-4 text-primary" />
                   <span>Heure</span>
                 </Label>
-                <Input id="time" type="time" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} />
+                <Input
+                  id="time"
+                  type="time"
+                  value={selectedTime}
+                  onChange={(e) => setSelectedTime(e.target.value)}
+                />
               </div>
             </div>
 
-            {/* Transport Mode Selection */}
             <div>
               <Label className="mb-3 block">Mode de transport</Label>
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   variant={transportMode === "bus" ? "default" : "outline"}
-                  className={`h-auto p-4 ${transportMode === "bus" ? "bg-primary text-primary-foreground" : ""}`}
+                  className={`h-auto p-4 ${
+                    transportMode === "bus" ? "bg-primary text-primary-foreground" : ""
+                  }`}
                   onClick={() => setTransportMode("bus")}
                 >
                   <div className="text-center">
@@ -151,7 +164,9 @@ export default function TripPlanning({ userProfile, onBack }: TripPlanningProps)
 
                 <Button
                   variant={transportMode === "taxi" ? "default" : "outline"}
-                  className={`h-auto p-4 ${transportMode === "taxi" ? "bg-secondary text-secondary-foreground" : ""}`}
+                  className={`h-auto p-4 ${
+                    transportMode === "taxi" ? "bg-secondary text-secondary-foreground" : ""
+                  }`}
                   onClick={() => setTransportMode("taxi")}
                 >
                   <div className="text-center">
@@ -162,19 +177,20 @@ export default function TripPlanning({ userProfile, onBack }: TripPlanningProps)
               </div>
             </div>
 
-            {/* Search Button */}
             <Button
               className="w-full mt-6"
               size="lg"
               onClick={handleSearch}
-              disabled={!departure || !destination || !selectedDate || !selectedTime || !transportMode}
+              disabled={
+                !departure || !destination || !selectedDate || !selectedTime || !transportMode
+              }
             >
               Rechercher des options
             </Button>
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Actions rapides */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="cursor-pointer hover:shadow-md transition-shadow">
             <CardContent className="p-4 text-center">

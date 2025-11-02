@@ -6,12 +6,8 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
 import { ArrowLeft } from "lucide-react"
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input"
-
-import {
-  sendOtpToPhone,
-  confirmOtp,
-} from "@/lib/firebaseClient"
+import { OTPInput } from "input-otp" // ✅ nouvelle API propre
+import { sendOtpToPhone, confirmOtp } from "@/lib/firebaseClient"
 
 interface SignupFlowProps {
   onComplete: (data: any) => void
@@ -26,7 +22,7 @@ export default function SignupFlow({ onComplete, onBack }: SignupFlowProps) {
   const [confirmationResult, setConfirmationResult] = useState<any>(null)
 
   const [formData, setFormData] = useState({
-    countryCode: "+225", // ✅ ajouté ici
+    countryCode: "+225",
     phone: "",
     otp: "",
     gender: "",
@@ -44,11 +40,10 @@ export default function SignupFlow({ onComplete, onBack }: SignupFlowProps) {
 
   async function handleNext() {
     if (step === "phone") {
-      // 1. on envoie OTP
       try {
         setStatus("Envoi du SMS...")
-const fullNumber =
-  (formData.countryCode || "+225") + formData.phone.replace(/\s+/g, "")
+        const fullNumber =
+          (formData.countryCode || "+225") + formData.phone.replace(/\s+/g, "")
         const result = await sendOtpToPhone(fullNumber)
         setConfirmationResult(result)
         setStatus("Code envoyé ✅")
@@ -61,7 +56,6 @@ const fullNumber =
     }
 
     if (step === "otp") {
-      // 2. on vérifie OTP
       if (!confirmationResult) {
         setStatus("Pas de session OTP active")
         return
@@ -69,11 +63,6 @@ const fullNumber =
       try {
         setStatus("Vérification du code...")
         const user = await confirmOtp(confirmationResult, formData.otp)
-
-        // ici tu peux aussi déjà créer le compte côté Hasura si tu veux,
-        // comme tu le fais dans LoginFlow
-        // (même remarque attention secret admin)
-
         setStatus("Téléphone confirmé ✅ " + user.phoneNumber)
         setStep("personal")
       } catch (err: any) {
@@ -89,30 +78,17 @@ const fullNumber =
     }
 
     if (step === "documents") {
-      // dernière étape : onComplete avec toutes les infos
       setStep("done")
       onComplete(formData)
-      return
-    }
-
-    if (step === "done") {
-      // rien
       return
     }
   }
 
   function handleBack() {
-    if (step === "phone") {
-      onBack()
-    } else if (step === "otp") {
-      setStep("phone")
-    } else if (step === "personal") {
-      setStep("otp")
-    } else if (step === "documents") {
-      setStep("personal")
-    } else if (step === "done") {
-      setStep("documents")
-    }
+    const order: SignupStep[] = ["phone", "otp", "personal", "documents", "done"]
+    const prev = order[order.indexOf(step) - 1]
+    setStep(prev || "phone")
+    if (step === "phone") onBack()
   }
 
   return (
@@ -122,220 +98,155 @@ const fullNumber =
         <button onClick={handleBack} className="p-2">
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <h2 className="text-lg font-bold">JE M'INSCRIS</h2>
+        <h2 className="text-lg font-bold">JE M&apos;INSCRIS</h2>
         <div className="w-10" />
       </div>
 
+      {/* Corps */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-md mx-auto space-y-6">
-         {step === "phone" && (
-  <div className="space-y-6 animate-slide-up">
-    <div>
-      <Label className="text-base mb-3 block">
-        Entrez votre numéro de téléphone :
-      </Label>
-
-      <div className="flex gap-2">
-        {/* Sélecteur d'indicatif pays */}
-        <select
-          className="px-3 py-2 bg-gray-100 rounded-lg font-semibold"
-          value={formData.countryCode || "+225"}
-          onChange={(e) =>
-            setFormData({ ...formData, countryCode: e.target.value })
-          }
-        >
-          <option value="+225">🇨🇮 +225</option>
-          <option value="+33">🇫🇷 +33</option>
-          <option value="+237">🇨🇲 +237</option>
-          <option value="+221">🇸🇳 +221</option>
-        </select>
-
-        <Input
-          type="tel"
-          placeholder="Ex: 01 41 36 28 39"
-          value={formData.phone}
-          onChange={(e) =>
-            setFormData({ ...formData, phone: e.target.value })
-          }
-          className="flex-1 h-12 text-lg"
-        />
-      </div>
-
-      <p className="text-sm text-gray-500 mt-2">
-        Un SMS de confirmation vous sera envoyé
-      </p>
-    </div>
-  </div>
-)}
-
-
-          {step === "otp" && (
+          {/* Étape 1 */}
+          {step === "phone" && (
             <div className="space-y-6 animate-slide-up">
-              <div>
-                <Label className="text-base mb-3 block">
-                  Entrez le code de confirmation envoyé au +225{" "}
-                  {formData.phone} :
-                </Label>
-                <div className="flex justify-center">
-                  <InputOTP
-                    maxLength={6}
-                    value={formData.otp}
-                    onChange={(val) =>
-                      setFormData({ ...formData, otp: val })
-                    }
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot
-                        index={0}
-                        className="w-12 h-12 text-2xl"
-                      />
-                      <InputOTPSlot
-                        index={1}
-                        className="w-12 h-12 text-2xl"
-                      />
-                      <InputOTPSlot
-                        index={2}
-                        className="w-12 h-12 text-2xl"
-                      />
-                      <InputOTPSlot
-                        index={3}
-                        className="w-12 h-12 text-2xl"
-                      />
-                      <InputOTPSlot
-                        index={4}
-                        className="w-12 h-12 text-2xl"
-                      />
-                      <InputOTPSlot
-                        index={5}
-                        className="w-12 h-12 text-2xl"
-                      />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === "personal" && (
-            <div className="space-y-4 animate-slide-up">
-              <div>
-                <Label className="text-base mb-2 block">
-                  Comment préférez-vous qu'on vous appelle ?
-                </Label>
-                <RadioGroup
-                  value={formData.gender}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, gender: value })
+              <Label className="text-base mb-3 block">
+                Entrez votre numéro de téléphone :
+              </Label>
+              <div className="flex gap-2">
+                <select
+                  className="px-3 py-2 bg-gray-100 rounded-lg font-semibold"
+                  value={formData.countryCode}
+                  onChange={(e) =>
+                    setFormData({ ...formData, countryCode: e.target.value })
                   }
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="mme" id="mme" />
-                    <Label htmlFor="mme">
-                      Madame / Mademoiselle
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="mr" id="mr" />
-                    <Label htmlFor="mr">Monsieur</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+                  <option value="+225">🇨🇮 +225</option>
+                  <option value="+33">🇫🇷 +33</option>
+                  <option value="+237">🇨🇲 +237</option>
+                  <option value="+221">🇸🇳 +221</option>
+                </select>
 
-              <div>
-                <Label className="text-base mb-2 block">
-                  Comment vous appelez-vous ?
-                </Label>
                 <Input
-                  placeholder="Prénoms"
-                  value={formData.firstName}
+                  type="tel"
+                  placeholder="01 41 36 28 39"
+                  value={formData.phone}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      firstName: e.target.value,
-                    })
+                    setFormData({ ...formData, phone: e.target.value })
                   }
-                  className="mb-2"
-                />
-                <Input
-                  placeholder="Nom"
-                  value={formData.lastName}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      lastName: e.target.value,
-                    })
-                  }
+                  className="flex-1 h-12 text-lg"
                 />
               </div>
+              <p className="text-sm text-gray-500 mt-2">
+                Un SMS de confirmation vous sera envoyé.
+              </p>
+            </div>
+          )}
 
-              <div>
-                <Label className="text-base mb-2 block">
-                  Quelle est votre date de naissance ?
-                </Label>
-                <Input
-                  type="text"
-                  placeholder="JJ/MM/AAAA"
-                  value={formData.birthDate}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      birthDate: e.target.value,
-                    })
-                  }
+          {/* Étape 2 */}
+          {step === "otp" && (
+            <div className="space-y-6 animate-slide-up">
+              <Label className="text-base mb-3 block">
+                Entrez le code de confirmation envoyé à{" "}
+                {formData.countryCode} {formData.phone} :
+              </Label>
+              <div className="flex justify-center">
+                <OTPInput
+                  maxLength={6}
+                  value={formData.otp}
+                  onChange={(val) => setFormData({ ...formData, otp: val })}
+                  render={({ slots }) => (
+                    <div className="flex justify-center gap-2">
+                      {slots.map((slot, i) => (
+                        <div
+                          key={i}
+                          className={`w-12 h-12 border rounded-lg flex items-center justify-center text-2xl font-semibold shadow-sm transition-colors ${
+                            slot.char
+                              ? "border-blue-500 text-blue-600"
+                              : "border-gray-300 text-gray-400"
+                          }`}
+                        >
+                          {slot.char ?? "•"}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 />
-              </div>
-
-              <div>
-                <Label className="text-base mb-2 block">
-                  Profession
-                </Label>
-                <Input
-                  placeholder="Votre profession"
-                  value={formData.profession}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      profession: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div>
-                <Label className="text-base mb-2 block">
-                  Votre adresse e-mail (facultatif)
-                </Label>
-                <Input
-                  type="email"
-                  placeholder="exemple@email.com"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      email: e.target.value,
-                    })
-                  }
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  En saisissant votre adresse email, vous acceptez
-                  de recevoir des emails promotionnels de La COTA.
-                </p>
               </div>
             </div>
           )}
 
+          {/* Étape 3 */}
+          {step === "personal" && (
+            <div className="space-y-4 animate-slide-up">
+              <Label className="text-base mb-2 block">
+                Comment préférez-vous qu&apos;on vous appelle ?
+              </Label>
+              <RadioGroup
+                value={formData.gender}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, gender: value })
+                }
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="mme" id="mme" />
+                  <Label htmlFor="mme">Madame / Mademoiselle</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="mr" id="mr" />
+                  <Label htmlFor="mr">Monsieur</Label>
+                </div>
+              </RadioGroup>
+
+              <Input
+                placeholder="Prénoms"
+                value={formData.firstName}
+                onChange={(e) =>
+                  setFormData({ ...formData, firstName: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Nom"
+                value={formData.lastName}
+                onChange={(e) =>
+                  setFormData({ ...formData, lastName: e.target.value })
+                }
+              />
+              <Input
+                placeholder="JJ/MM/AAAA"
+                value={formData.birthDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, birthDate: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Profession"
+                value={formData.profession}
+                onChange={(e) =>
+                  setFormData({ ...formData, profession: e.target.value })
+                }
+              />
+              <Input
+                type="email"
+                placeholder="exemple@email.com"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+              />
+            </div>
+          )}
+
+          {/* Étape 4 */}
           {step === "documents" && (
             <div className="space-y-4 animate-slide-up">
-              <DocumentUpload label="Numéro de CNI" />
               <DocumentUpload label="Recto de la CNI" />
               <DocumentUpload label="Verso de la CNI" />
-              <DocumentUpload label="Numéro du permis de conduire" />
-              <DocumentUpload label="Recto du permis de conduire" />
-              <DocumentUpload label="Verso du permis de conduire" />
-              <DocumentUpload label="Selfie avec le permis de conduire" />
+              <DocumentUpload label="Recto du permis" />
+              <DocumentUpload label="Verso du permis" />
+              <DocumentUpload label="Selfie avec le permis" />
             </div>
           )}
 
+          {/* Étape finale */}
           {step === "done" && (
             <div className="space-y-4 animate-slide-up text-center">
               <p className="text-lg font-semibold text-green-600">
@@ -350,13 +261,11 @@ const fullNumber =
           <p className="text-center text-xs text-gray-500 min-h-[1.5rem]">
             {status}
           </p>
-
-          {/* IMPORTANT: pour reCAPTCHA Firebase */}
           <div id="recaptcha-container" />
         </div>
       </div>
 
-      {/* Footer Button */}
+      {/* Footer */}
       <div className="p-4 bg-white border-t">
         <Button
           onClick={handleNext}
@@ -376,6 +285,7 @@ const fullNumber =
     </div>
   )
 }
+
 function DocumentUpload({ label }: { label: string }) {
   const [fileName, setFileName] = React.useState<string>("")
 
@@ -393,36 +303,27 @@ function DocumentUpload({ label }: { label: string }) {
     <div className="space-y-2">
       <Label className="text-sm">{label}</Label>
       <div className="flex gap-2 items-center">
-        {label.includes("Numéro") ? (
-          <Input
-            placeholder="Entrer le numéro"
-            className="flex-1"
-          />
-        ) : (
-          <>
-            <input
-              id={fileInputId}
-              type="file"
-              accept="image/*,.pdf"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <Button
-              variant="outline"
-              size="lg"
-              className="px-6 bg-transparent"
-              onClick={() =>
-                document.getElementById(fileInputId)?.click()
-              }
-            >
-              {fileName ? "Changer" : "Ajouter"}
-            </Button>
-            {fileName && (
-              <span className="text-sm text-gray-600 truncate max-w-[150px]">
-                {fileName}
-              </span>
-            )}
-          </>
+        <input
+          id={fileInputId}
+          type="file"
+          accept="image/*,.pdf"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <Button
+          variant="outline"
+          size="lg"
+          className="px-6 bg-transparent"
+          onClick={() =>
+            document.getElementById(fileInputId)?.click()
+          }
+        >
+          {fileName ? "Changer" : "Ajouter"}
+        </Button>
+        {fileName && (
+          <span className="text-sm text-gray-600 truncate max-w-[150px]">
+            {fileName}
+          </span>
         )}
       </div>
     </div>

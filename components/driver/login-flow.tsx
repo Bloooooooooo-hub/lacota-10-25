@@ -5,7 +5,7 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { ArrowLeft } from "lucide-react"
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input"
+import { OTPInput } from "input-otp"
 
 import { sendOtpToPhone, confirmOtp } from "@/lib/firebaseClient"
 
@@ -16,14 +16,14 @@ interface LoginFlowProps {
 
 export default function LoginFlow({ onComplete, onBack }: LoginFlowProps) {
   const [step, setStep] = useState<"phone" | "otp" | "done">("phone")
-  const [countryCode, setCountryCode] = useState("+225") // 🌍 multi-pays
+  const [countryCode, setCountryCode] = useState("+225")
   const [phone, setPhone] = useState("")
   const [otp, setOtp] = useState("")
   const [status, setStatus] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [confirmationResult, setConfirmationResult] = useState<any>(null)
 
-  // 1️⃣ Envoi du code SMS
+  // ✅ Envoi du code SMS
   async function handleSendCode() {
     if (!phone.trim()) {
       setStatus("Merci d'entrer un numéro.")
@@ -48,7 +48,7 @@ export default function LoginFlow({ onComplete, onBack }: LoginFlowProps) {
     }
   }
 
-  // 2️⃣ Vérification du code
+  // ✅ Vérification du code
   async function handleVerifyCode() {
     if (!confirmationResult) {
       setStatus("Pas de session OTP active.")
@@ -70,7 +70,7 @@ export default function LoginFlow({ onComplete, onBack }: LoginFlowProps) {
 
       const role = "driver"
 
-      // 🔁 Appel à ton API /upsert-user pour créer ou mettre à jour
+      // 🔁 Enregistrement / mise à jour backend
       const resp = await fetch("/api/upsert-user", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -97,7 +97,9 @@ export default function LoginFlow({ onComplete, onBack }: LoginFlowProps) {
       })
 
       // 🚗 Redirection chauffeur
-      window.location.href = "/driver/lines"
+      if (typeof window !== "undefined") {
+        window.location.href = "/driver/lines"
+      }
     } catch (err: any) {
       console.error(err)
       setStatus("Code invalide ❌ : " + (err.message || "Erreur inconnue"))
@@ -168,18 +170,32 @@ export default function LoginFlow({ onComplete, onBack }: LoginFlowProps) {
           {step === "otp" && (
             <div className="space-y-6 animate-slide-up">
               <Label className="text-base mb-3 block">
-                Entrez le code de confirmation envoyé au {countryCode}{" "}
-                {phone} :
+                Entrez le code de confirmation envoyé au {countryCode} {phone} :
               </Label>
-              <div className="flex justify-center">
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                  <InputOTPGroup>
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <InputOTPSlot key={i} index={i} className="w-12 h-12 text-2xl" />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
+
+              {/* ✅ Nouvelle API InputOTP */}
+              <OTPInput
+  maxLength={6}
+  value={otp}
+  onChange={(value) => setOtp(value)}
+  render={({ slots }) => (
+    <div className="flex justify-center gap-2">
+      {slots.map((slot, i) => (
+        <div
+          key={i}
+          className={`w-12 h-12 border rounded-lg flex items-center justify-center text-2xl font-semibold shadow-sm transition-colors ${
+            slot.char
+              ? "border-blue-500 text-blue-600"
+              : "border-gray-300 text-gray-400"
+          }`}
+        >
+          {slot.char ?? "•"}
+        </div>
+      ))}
+    </div>
+  )}
+/>
+
 
               <Button
                 onClick={handleVerifyCode}

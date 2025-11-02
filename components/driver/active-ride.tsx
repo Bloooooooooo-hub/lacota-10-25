@@ -8,20 +8,50 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 
-export default function LeGrin() {
+// ✅ Déclaration des types
+interface Passenger {
+  id: number
+  name: string
+  stop: string
+  phone: string
+  rating: number
+  status: string
+}
+
+interface Ride {
+  id: number
+  date: string
+  time: string
+  depart: string
+  arrivee: string
+  prix: string
+  distance: string
+  temps: string
+  places: number
+  complet: boolean
+  passagers: Passenger[]
+}
+
+// ✅ Déclaration de la prop onComplete
+interface ActiveRideProps {
+  onComplete: () => void
+}
+
+// ✅ Composant renommé pour correspondre à driver-dashboard.tsx
+export default function ActiveRide({ onComplete }: ActiveRideProps) {
   const [selectedRide, setSelectedRide] = useState<number | null>(null)
   const [showPassengersDialog, setShowPassengersDialog] = useState(false)
   const [position, setPosition] = useState<[number, number] | null>(null)
   const [consent, setConsent] = useState<boolean | null>(null)
 
-  // Icône personnalisée pour Leaflet
+  // ✅ Icône personnalisée pour Leaflet
   const markerIcon = new L.Icon({
     iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
     iconSize: [25, 41],
     iconAnchor: [12, 41],
   })
 
-  // Demande de géolocalisation avec consentement
+  // ✅ Demande de géolocalisation avec consentement
   useEffect(() => {
     if (consent) {
       navigator.geolocation.getCurrentPosition(
@@ -32,7 +62,8 @@ export default function LeGrin() {
     }
   }, [consent])
 
-  const rides = [
+  // ✅ Exemple de trajets mockés
+  const rides: Ride[] = [
     {
       id: 1,
       date: "Lun 15 Sept.",
@@ -65,11 +96,17 @@ export default function LeGrin() {
     },
   ]
 
+  // ✅ Fonction de fin de trajet
+  const handleFinishRide = () => {
+    alert("🚘 Trajet terminé ! Retour au tableau de bord.")
+    onComplete() // renvoie vers DriverDashboard
+  }
+
   return (
     <div className="min-h-screen bg-[#fffaf3] flex flex-col p-4">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Annonces du Grin 🚗</h2>
 
-      {/* Consentement GPS */}
+      {/* ✅ Consentement GPS */}
       {consent === null && (
         <div className="bg-yellow-100 border border-yellow-300 text-yellow-800 p-4 rounded-lg mb-4 text-sm">
           <p>Souhaitez-vous autoriser l'accès à votre position GPS pour afficher les trajets proches ?</p>
@@ -80,7 +117,7 @@ export default function LeGrin() {
         </div>
       )}
 
-      {/* Carte GPS */}
+      {/* ✅ Carte GPS */}
       {consent && position && (
         <div className="h-64 mb-5 rounded-xl overflow-hidden border border-gray-300 shadow-sm">
           <MapContainer center={position} zoom={13} scrollWheelZoom={false} className="h-full w-full">
@@ -95,7 +132,7 @@ export default function LeGrin() {
         </div>
       )}
 
-      {/* Liste des trajets */}
+      {/* ✅ Liste des trajets */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-20">
         {rides.map((ride) => (
           <div
@@ -116,12 +153,12 @@ export default function LeGrin() {
               <div className="text-right">
                 <p className="font-bold text-[#8B4789]">{ride.prix} fr</p>
                 <p className="text-xs text-gray-500">
-                  {ride.places > 0 ? `${ride.places} place restante` : "Aucune place disponible"}
+                  {ride.places > 0 ? `${ride.places} place${ride.places > 1 ? "s" : ""} restante${ride.places > 1 ? "s" : ""}` : "Aucune place disponible"}
                 </p>
               </div>
             </div>
 
-            {/* Détails si sélectionné */}
+            {/* ✅ Détails si sélectionné */}
             {selectedRide === ride.id && (
               <div className="mt-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -143,14 +180,14 @@ export default function LeGrin() {
                 )}
 
                 <div className="flex flex-col gap-2">
-                  <Button className="bg-green-600 hover:bg-green-700 text-white font-semibold">
-                    On y va pour LA COTA
+                  <Button onClick={handleFinishRide} className="bg-green-600 hover:bg-green-700 text-white font-semibold">
+                    ✅ Terminer le trajet
                   </Button>
                   <Button className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold">
-                    J’attends un autre chauffeur
+                    🕒 J’attends un autre chauffeur
                   </Button>
                   <Button className="bg-red-600 hover:bg-red-700 text-white font-semibold">
-                    Annuler la réservation
+                    ❌ Annuler la réservation
                   </Button>
                 </div>
               </div>
@@ -159,14 +196,14 @@ export default function LeGrin() {
         ))}
       </div>
 
-      {/* Dialog Passagers */}
+      {/* ✅ Dialog Passagers */}
       <Dialog open={showPassengersDialog} onOpenChange={setShowPassengersDialog}>
         <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-center text-lg font-bold">Passagers inscrits</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-4">
-            {rides[0].passagers.map((p) => (
+            {rides.find((r) => r.id === selectedRide)?.passagers.map((p) => (
               <div key={p.id} className="flex flex-col gap-1 border p-3 rounded-xl bg-gray-50">
                 <div className="flex justify-between">
                   <div>

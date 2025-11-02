@@ -1,14 +1,9 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  images: {
-    unoptimized: true,
+export default {
+  output: "standalone",
+  reactStrictMode: true,
+  experimental: { appDir: true },
+  metadata: {
+    title: "LA COTA - Transport Intelligent",
+    description: "Application de géolocalisation pour transport urbain économique",
   },
 }
-
-export default nextConfig

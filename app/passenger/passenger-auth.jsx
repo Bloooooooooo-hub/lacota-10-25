@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import PassengerSignup from "@/components/passenger/PassengerSignup"
-import PassengerLogin from "@/components/passenger/PassengerLogin"
+import PassengerSignup from "@/components/passenger/passenger-signup"
+import PassengerLogin from "@/components/passenger/passenger-login"
 
 export default function PassengerAuthPage() {
   const [mode, setMode] = useState<"login" | "signup">("login")

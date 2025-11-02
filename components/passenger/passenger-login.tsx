@@ -5,12 +5,9 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { ArrowLeft } from "lucide-react"
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input"
-import {
-  sendOtpToPhone,
-  confirmOtp,
-  auth,
-} from "@/lib/firebaseClient"
+import { OTPInput } from "input-otp"
+
+import { sendOtpToPhone, confirmOtp, getFirebaseAuth } from "@/lib/firebaseClient"
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 
 interface PassengerLoginProps {
@@ -27,7 +24,10 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
   const [loading, setLoading] = useState(false)
   const [confirmationResult, setConfirmationResult] = useState<any>(null)
 
-  // 🔹 Étape 1 : Envoi OTP
+  // ✅ Firebase Auth côté client
+  const auth = typeof window !== "undefined" ? getFirebaseAuth() : null
+
+  // 🔹 Étape 1 : Envoi du code OTP
   async function handleSendCode() {
     if (!phone.trim()) return setStatus("Merci d'entrer un numéro.")
 
@@ -47,7 +47,7 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
     }
   }
 
-  // 🔹 Étape 2 : Vérification OTP
+  // 🔹 Étape 2 : Vérification du code
   async function handleVerifyCode() {
     if (!confirmationResult) return setStatus("Pas de session OTP active.")
     if (otp.trim().length < 6) return setStatus("Le code doit faire 6 chiffres.")
@@ -58,13 +58,15 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
       const user = await confirmOtp(confirmationResult, otp)
       const validatedPhone = user.phoneNumber
 
-      // 🔁 Synchronisation Hasura
       await syncUserWithHasura({ phone: validatedPhone, role: "passenger" })
 
       setStep("done")
       setStatus("Connexion réussie ✅")
       onComplete({ phone: validatedPhone })
-      window.location.href = "/passenger/home"
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/passenger/home"
+      }
     } catch (err: any) {
       console.error(err)
       setStatus("Code invalide ❌ : " + (err.message || "Erreur inconnue"))
@@ -75,6 +77,11 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
 
   // 🟢 Connexion Google
   async function handleGoogleLogin() {
+    if (!auth || typeof window === "undefined") {
+      console.error("Firebase Auth indisponible (exécution côté serveur)")
+      return
+    }
+
     try {
       setLoading(true)
       setStatus("Connexion Google...")
@@ -82,11 +89,9 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
       const result = await signInWithPopup(auth, provider)
       const user = result.user
 
-      // 🧩 Séparation prénom / nom
       const [firstName, ...rest] = (user.displayName || "").split(" ")
       const lastName = rest.join(" ")
 
-      // 🔁 Synchronisation Hasura
       await syncUserWithHasura({
         email: user.email,
         first_name: firstName,
@@ -97,7 +102,10 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
 
       setStatus("Connexion réussie ✅")
       onComplete({ email: user.email, name: user.displayName })
-      window.location.href = "/passenger/home"
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/passenger/home"
+      }
     } catch (err: any) {
       console.error("Erreur Google Auth:", err)
       setStatus("Erreur Google : " + err.message)
@@ -106,13 +114,14 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
     }
   }
 
-  // 🔁 Fonction commune d’enregistrement Hasura
+  // 🔁 Enregistrement côté Hasura
   async function syncUserWithHasura(payload: any) {
     const resp = await fetch("/api/upsert-user", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     })
+
     if (!resp.ok) {
       const errorText = await resp.text()
       console.error("Erreur API:", errorText)
@@ -120,7 +129,7 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
     }
   }
 
-  // 🔹 UI
+  // 🔹 Interface utilisateur
   return (
     <div className="min-h-screen bg-[#fffaf3] flex flex-col">
       {/* Header */}
@@ -198,13 +207,27 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
                 Entrez le code envoyé au {countryCode} {phone} :
               </Label>
               <div className="flex justify-center">
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                  <InputOTPGroup>
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <InputOTPSlot key={i} index={i} className="w-12 h-12 text-2xl" />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
+                <OTPInput
+                  maxLength={6}
+                  value={otp}
+                  onChange={(value) => setOtp(value)}
+                  render={({ slots }) => (
+                    <div className="flex justify-center gap-2">
+                      {slots.map((slot, i) => (
+                        <div
+                          key={i}
+                          className={`w-12 h-12 border rounded-lg flex items-center justify-center text-2xl font-semibold shadow-sm transition-colors ${
+                            slot.char
+                              ? "border-blue-500 text-blue-600"
+                              : "border-gray-300 text-gray-400"
+                          }`}
+                        >
+                          {slot.char ?? "•"}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                />
               </div>
 
               <Button
@@ -217,7 +240,7 @@ export default function PassengerLogin({ onComplete, onBack }: PassengerLoginPro
             </div>
           )}
 
-          {/* Étape 3 - Done */}
+          {/* Étape 3 - Terminé */}
           {step === "done" && (
             <div className="space-y-4 animate-slide-up text-center">
               <p className="text-lg font-semibold text-green-600">Connecté ✅</p>

@@ -1,6 +1,7 @@
+// app/page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import SplashScreen from "@/components/splash-screen"
 import ProfileSelection from "@/components/profile-selection"
 import WelcomeScreen from "@/components/driver/welcome-screen"
@@ -13,7 +14,13 @@ import PassengerSignup from "@/components/passenger/passenger-signup"
 import PassengerLogin from "@/components/passenger/passenger-login"
 
 export type UserType = "driver" | "passenger" | null
-export type AppScreen = "splash" | "profile-selection" | "welcome" | "signup" | "login" | "dashboard"
+export type AppScreen =
+  | "splash"
+  | "profile-selection"
+  | "welcome"
+  | "signup"
+  | "login"
+  | "dashboard"
 
 export default function HomePage() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("splash")
@@ -34,9 +41,7 @@ export default function HomePage() {
 
   const handleNavigate = (screen: AppScreen, data?: any) => {
     setCurrentScreen(screen)
-    if (data) {
-      setUserData(data)
-    }
+    if (data) setUserData(data)
   }
 
   const handleLogout = () => {
@@ -45,53 +50,50 @@ export default function HomePage() {
     setCurrentScreen("profile-selection")
   }
 
+  let content = null
+
   if (currentScreen === "splash") {
-    return <SplashScreen />
-  }
-
-  if (currentScreen === "profile-selection") {
-    return <ProfileSelection onSelect={handleProfileSelect} />
-  }
-
-  if (userType === "driver") {
-    if (currentScreen === "welcome") {
-      return <WelcomeScreen onNavigate={handleNavigate} />
-    }
-    if (currentScreen === "signup") {
-      return (
-        <SignupFlow onComplete={(data) => handleNavigate("dashboard", data)} onBack={() => handleNavigate("welcome")} />
+    content = <SplashScreen />
+  } else if (currentScreen === "profile-selection") {
+    content = <ProfileSelection onSelect={handleProfileSelect} />
+  } else if (userType === "driver") {
+    if (currentScreen === "welcome")
+      content = <WelcomeScreen onNavigate={handleNavigate} />
+    else if (currentScreen === "signup")
+      content = (
+        <SignupFlow
+          onComplete={(data) => handleNavigate("dashboard", data)}
+          onBack={() => handleNavigate("welcome")}
+        />
       )
-    }
-    if (currentScreen === "login") {
-      return (
-        <LoginFlow onComplete={(data) => handleNavigate("dashboard", data)} onBack={() => handleNavigate("welcome")} />
+    else if (currentScreen === "login")
+      content = (
+        <LoginFlow
+          onComplete={(data) => handleNavigate("dashboard", data)}
+          onBack={() => handleNavigate("welcome")}
+        />
       )
-    }
-    return <DriverDashboard driverData={userData} onLogout={handleLogout} />
-  }
-
-  if (userType === "passenger") {
-    if (currentScreen === "welcome") {
-      return <PassengerWelcome onNavigate={handleNavigate} />
-    }
-    if (currentScreen === "signup") {
-      return (
+    else content = <DriverDashboard driverData={userData} onLogout={handleLogout} />
+  } else if (userType === "passenger") {
+    if (currentScreen === "welcome")
+      content = <PassengerWelcome onNavigate={handleNavigate} />
+    else if (currentScreen === "signup")
+      content = (
         <PassengerSignup
           onComplete={(data) => handleNavigate("dashboard", data)}
           onBack={() => handleNavigate("welcome")}
         />
       )
-    }
-    if (currentScreen === "login") {
-      return (
+    else if (currentScreen === "login")
+      content = (
         <PassengerLogin
           onComplete={(data) => handleNavigate("dashboard", data)}
           onBack={() => handleNavigate("welcome")}
         />
       )
-    }
-    return <PassengerDashboard passengerData={userData} onLogout={handleLogout} />
+    else
+      content = <PassengerDashboard passengerData={userData} onLogout={handleLogout} />
   }
 
-  return <ProfileSelection onSelect={handleProfileSelect} />
+  return <div className="min-h-screen bg-white text-gray-900">{content}</div>
 }

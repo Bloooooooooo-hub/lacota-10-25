@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,7 +29,7 @@ export function ProposeNewLine() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation
+    // ✅ Validation basique
     if (!formData.departureCommune || !formData.arrivalCommune) {
       toast({
         title: "Erreur",
@@ -40,13 +39,13 @@ export function ProposeNewLine() {
       return
     }
 
-    // Simuler l'envoi
+    // ✅ Simulation d’envoi
     toast({
-      title: "Proposition envoyée",
-      description: "Votre proposition de nouvelle ligne a été envoyée avec succès",
+      title: "Proposition envoyée ✅",
+      description: "Votre proposition de nouvelle ligne a été envoyée avec succès.",
     })
 
-    // Réinitialiser le formulaire
+    // ✅ Réinitialisation du formulaire
     setFormData({
       departureCommune: "",
       departureDetails: "",
@@ -66,8 +65,11 @@ export function ProposeNewLine() {
           <Plus className="h-5 w-5" />
           Proposer une nouvelle ligne
         </CardTitle>
-        <CardDescription>Suggérez une nouvelle ligne de transport pour améliorer le réseau LA COTA</CardDescription>
+        <CardDescription>
+          Suggérez une nouvelle ligne de transport pour améliorer le réseau LA COTA.
+        </CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Point de départ */}
@@ -95,17 +97,17 @@ export function ProposeNewLine() {
               <Label htmlFor="departure-details">Détails du point de départ</Label>
               <Input
                 id="departure-details"
-                placeholder="Ex: Carrefour principal, près de..."
+                placeholder="Ex : Carrefour principal, près de..."
                 value={formData.departureDetails}
                 onChange={(e) => setFormData({ ...formData, departureDetails: e.target.value })}
               />
             </div>
           </div>
 
-          {/* Point d'arrivée */}
+          {/* Point d’arrivée */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="arrival-commune">Commune d'arrivée *</Label>
+              <Label htmlFor="arrival-commune">Commune d’arrivée *</Label>
               <Select
                 value={formData.arrivalCommune}
                 onValueChange={(value) => setFormData({ ...formData, arrivalCommune: value })}
@@ -124,10 +126,10 @@ export function ProposeNewLine() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="arrival-details">Détails du point d'arrivée</Label>
+              <Label htmlFor="arrival-details">Détails du point d’arrivée</Label>
               <Input
                 id="arrival-details"
-                placeholder="Ex: Station de bus, devant..."
+                placeholder="Ex : Station de bus, devant..."
                 value={formData.arrivalDetails}
                 onChange={(e) => setFormData({ ...formData, arrivalDetails: e.target.value })}
               />
@@ -174,17 +176,25 @@ export function ProposeNewLine() {
             <Checkbox
               id="partnership"
               checked={formData.partnershipRequest}
-              onCheckedChange={(checked) => setFormData({ ...formData, partnershipRequest: checked as boolean })}
+              // ✅ Correction ici : plus de `onCheckedChange`
+              onChange={(e) =>
+                setFormData({ ...formData, partnershipRequest: e.target.checked })
+              }
             />
             <div className="space-y-1 leading-none">
-              <Label htmlFor="partnership" className="text-sm font-medium leading-relaxed cursor-pointer">
+              <Label
+                htmlFor="partnership"
+                className="text-sm font-medium leading-relaxed cursor-pointer"
+              >
                 Je souhaite que mon entreprise devienne partenaire légalement
               </Label>
-              <p className="text-sm text-muted-foreground">(RCCM, DFE requis pour le partenariat officiel)</p>
+              <p className="text-sm text-muted-foreground">
+                (RCCM, DFE requis pour le partenariat officiel)
+              </p>
             </div>
           </div>
 
-          {/* Bouton de soumission */}
+          {/* Bouton d’envoi */}
           <Button type="submit" className="w-full" size="lg">
             <Send className="mr-2 h-4 w-4" />
             Proposer la ligne

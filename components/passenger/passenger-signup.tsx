@@ -5,9 +5,9 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { ArrowLeft } from "lucide-react"
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input"
+import { OTPInput } from "input-otp"
 
-import { sendOtpToPhone, confirmOtp, auth } from "@/lib/firebaseClient"
+import { sendOtpToPhone, confirmOtp, getFirebaseAuth } from "@/lib/firebaseClient"
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 
 interface PassengerSignupProps {
@@ -35,10 +35,12 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
     email: "",
   })
 
+  // ✅ Récupère Firebase Auth côté client uniquement
+  const auth = typeof window !== "undefined" ? getFirebaseAuth() : null
+
   // 🔹 Étape 1 — Envoi du code
   async function handleSendCode() {
     if (!phone.trim()) return setStatus("Merci d'entrer un numéro.")
-
     try {
       setLoading(true)
       setStatus("Envoi du SMS...")
@@ -59,7 +61,6 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
   async function handleVerifyCode() {
     if (!confirmationResult) return setStatus("Pas de session OTP active.")
     if (otp.trim().length < 6) return setStatus("Le code doit faire 6 chiffres.")
-
     try {
       setLoading(true)
       setStatus("Vérification du code...")
@@ -100,7 +101,10 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
       setStatus("Compte créé ✅")
       setStep("done")
       onComplete(data)
-      window.location.href = "/passenger/home"
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/passenger/home"
+      }
     } catch (err: any) {
       console.error(err)
       setStatus("Erreur : " + err.message)
@@ -111,6 +115,10 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
 
   // 🟢 Connexion / inscription Google
   async function handleGoogleSignup() {
+    if (!auth || typeof window === "undefined") {
+      console.error("Firebase Auth indisponible (exécution côté serveur)")
+      return
+    }
     try {
       setLoading(true)
       setStatus("Connexion Google...")
@@ -119,7 +127,6 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
       const result = await signInWithPopup(auth, provider)
       const user = result.user
 
-      // 🔁 Création dans Hasura
       const resp = await fetch("/api/upsert-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -136,7 +143,10 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
       setStatus("Compte créé avec Google ✅")
       setStep("done")
       onComplete({ email: user.email, name: user.displayName })
-      window.location.href = "/passenger/home"
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/passenger/home"
+      }
     } catch (err: any) {
       console.error("Erreur Google:", err)
       setStatus("Erreur Google : " + err.message)
@@ -216,14 +226,29 @@ export default function PassengerSignup({ onComplete, onBack }: PassengerSignupP
             <div className="space-y-6 animate-slide-up">
               <Label>Entrez le code envoyé au {countryCode} {phone} :</Label>
               <div className="flex justify-center">
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                  <InputOTPGroup>
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <InputOTPSlot key={i} index={i} className="w-12 h-12 text-2xl" />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
+                <OTPInput
+                  maxLength={6}
+                  value={otp}
+                  onChange={(value) => setOtp(value)}
+                  render={({ slots }) => (
+                    <div className="flex justify-center gap-2">
+                      {slots.map((slot, i) => (
+                        <div
+                          key={i}
+                          className={`w-12 h-12 border rounded-lg flex items-center justify-center text-2xl font-semibold shadow-sm transition-colors ${
+                            slot.char
+                              ? "border-blue-500 text-blue-600"
+                              : "border-gray-300 text-gray-400"
+                          }`}
+                        >
+                          {slot.char ?? "•"}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                />
               </div>
+
               <Button
                 onClick={handleVerifyCode}
                 disabled={loading || otp.trim().length < 6}
