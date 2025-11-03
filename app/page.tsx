@@ -1,17 +1,19 @@
-// app/page.tsx
 "use client"
 
+import nextDynamic from "next/dynamic"
 import React, { useState, useEffect } from "react"
-import SplashScreen from "@/components/splash-screen"
-import ProfileSelection from "@/components/profile-selection"
-import WelcomeScreen from "@/components/driver/welcome-screen"
-import SignupFlow from "@/components/driver/signup-flow"
-import LoginFlow from "@/components/driver/login-flow"
-import DriverDashboard from "@/components/driver/driver-dashboard"
-import PassengerDashboard from "@/components/passenger/passenger-dashboard"
-import PassengerWelcome from "@/components/passenger/passenger-welcome"
-import PassengerSignup from "@/components/passenger/passenger-signup"
-import PassengerLogin from "@/components/passenger/passenger-login"
+
+const SplashScreen = nextDynamic(() => import("@/components/splash-screen"), { ssr: false })
+const ProfileSelection = nextDynamic(() => import("@/components/profile-selection"), { ssr: false })
+const WelcomeScreen = nextDynamic(() => import("@/components/driver/welcome-screen"), { ssr: false })
+const SignupFlow = nextDynamic(() => import("@/components/driver/signup-flow"), { ssr: false })
+const LoginFlow = nextDynamic(() => import("@/components/driver/login-flow"), { ssr: false })
+const DriverDashboard = nextDynamic(() => import("@/components/driver/driver-dashboard"), { ssr: false })
+const PassengerDashboard = nextDynamic(() => import("@/components/passenger/passenger-dashboard"), { ssr: false })
+const PassengerWelcome = nextDynamic(() => import("@/components/passenger/passenger-welcome"), { ssr: false })
+const PassengerSignup = nextDynamic(() => import("@/components/passenger/passenger-signup"), { ssr: false })
+const PassengerLogin = nextDynamic(() => import("@/components/passenger/passenger-login"), { ssr: false })
+
 
 export type UserType = "driver" | "passenger" | null
 export type AppScreen =
@@ -97,3 +99,6 @@ export default function HomePage() {
 
   return <div className="min-h-screen bg-white text-gray-900">{content}</div>
 }
+
+// ✅ Désactive le pre-render côté serveur
+export const dynamic = "force-dynamic";

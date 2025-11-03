@@ -22,7 +22,7 @@ const firebaseConfig = {
 
 // ✅ Initialise Firebase une seule fois
 export function getFirebaseApp() {
-  if (typeof window === "undefined") return null // ⛔️ skip côté serveur
+  if (typeof window === "undefined") return null // 🔒 skip côté serveur
   if (!getApps().length) {
     return initializeApp(firebaseConfig)
   }
@@ -43,14 +43,27 @@ function getOrCreateRecaptcha() {
   const auth = getFirebaseAuth()
   if (!auth) return null
 
-  if (!(window as any).recaptchaVerifier) {
-    ;(window as any).recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-      size: "invisible",
-      callback: () => console.log("reCAPTCHA validé ✅"),
-    })
-  }
+  try {
+    // ⚙️ Si le conteneur n'existe pas, on le crée dynamiquement
+    if (!document.getElementById("recaptcha-container")) {
+      const div = document.createElement("div")
+      div.id = "recaptcha-container"
+      div.style.display = "none"
+      document.body.appendChild(div)
+    }
 
-  return (window as any).recaptchaVerifier as RecaptchaVerifier
+    if (!(window as any).recaptchaVerifier) {
+      ;(window as any).recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "invisible",
+        callback: () => console.log("reCAPTCHA validé ✅"),
+      })
+    }
+
+    return (window as any).recaptchaVerifier as RecaptchaVerifier
+  } catch (err) {
+    console.warn("⚠️ reCAPTCHA non initialisé :", err)
+    return null
+  }
 }
 
 // ✅ Envoi OTP

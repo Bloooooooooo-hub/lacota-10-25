@@ -1,9 +1,9 @@
-export default {
-  output: "standalone",
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
-  experimental: { appDir: true },
-  metadata: {
-    title: "LA COTA - Transport Intelligent",
-    description: "Application de géolocalisation pour transport urbain économique",
+  experimental: {
+    // ⚠️ Supprime appDir et metadata (incompatibles avec Next 16)
   },
 }
+
+export default nextConfig
